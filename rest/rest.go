@@ -11,7 +11,7 @@ func Map(path string, object interface{}) (*Resource, os.Error) {
 	value := reflect.ValueOf(object)
 
 	if k := value.Kind(); k == reflect.Ptr || k == reflect.Interface {
-		return Map(path, value.Elem())
+		value = value.Elem()
 	}
 
 	if path[len(path)-1] != '/' {
