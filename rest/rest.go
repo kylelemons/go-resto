@@ -1,4 +1,3 @@
-// Package rest is a RESTful Object framework.
 package rest
 
 import (
@@ -7,15 +6,18 @@ import (
 	"reflect"
 )
 
+// Map makes the object available through a RESTful interface at path.
 func Map(path string, object interface{}) (*Resource, os.Error) {
-	value := reflect.ValueOf(object)
-
-	if k := value.Kind(); k == reflect.Ptr || k == reflect.Interface {
-		value = value.Elem()
-	}
-
 	if path[len(path)-1] != '/' {
 		path = path + "/"
+	}
+
+	return mapValue(path, reflect.ValueOf(object))
+}
+
+func mapValue(path string, value reflect.Value) (*Resource, os.Error) {
+	if k := value.Kind(); k == reflect.Ptr || k == reflect.Interface {
+		value = value.Elem()
 	}
 
 	r := &Resource{
@@ -26,7 +28,7 @@ func Map(path string, object interface{}) (*Resource, os.Error) {
 	}
 
 	Handle(path, r)
-	log.Printf("rest: added mapping %s for %T object", path, object)
+	log.Printf("rest: added mapping %s for %T object", path, value.Interface())
 
 	return r, nil
 }

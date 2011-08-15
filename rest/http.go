@@ -35,9 +35,15 @@ type ErrorCoder interface {
 // in an HTTP Forbidden response.  A CONNECT or other request will also
 // generate the necessary HTTP error code.
 //
-// If the method is a "safe" method (e.g. GET), the resource is locked for reading.
-// If the method is an "unsafe" method (e.g. PUT), the resource is locked for writing.
-// The resource is unlocked when the request handling completes.
+// A request for OPTIONS on a resource will generate a reply containing an
+// Allow header listing the available methods for that resource.  If the
+// resource is readonly, only "safe" methods will be listed.  The ServeREST
+// method will still be called, so this header may be modified by the handler.
+//
+// If the method is a "safe" method (e.g. GET), the resource is locked for
+// reading.  If the method is an "unsafe" method (e.g. PUT), the resource is
+// locked for writing.  The resource is unlocked when the request handling
+// completes.
 //
 // Errors returned by rhe ServeREST function of the handler are sent to the
 // client.  By default, these are sent with an HTTP Internal Server Error
@@ -58,7 +64,7 @@ func Handle(path string, handler Handler) {
 		case "POST", "PUT", "DELETE", "PATCH":
 			if res != nil {
 				if res.ro {
-					log("attempt to modify read-only resource blocked")
+					log("attempt to modify read-only resource "+r.URL.Path+" blocked")
 					http.Error(w, "Read-Only Resource", http.StatusForbidden)
 					return
 				}
@@ -72,7 +78,7 @@ func Handle(path string, handler Handler) {
 		case "GET", "HEAD":
 			if res != nil {
 				res.lock.RLock()
-				defer res.lock.Unlock()
+				defer res.lock.RUnlock()
 			}
 		case "OPTIONS":
 			allow := []string{"OPTIONS", "HEAD", "GET", "POST", "PATCH", "PUT", "DELETE"}
@@ -88,6 +94,7 @@ func Handle(path string, handler Handler) {
 
 		err := handler.ServeREST(w, r)
 		if err == nil {
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
